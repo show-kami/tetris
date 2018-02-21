@@ -3,49 +3,36 @@ from curses import wrapper
 import numpy as np
 
 TetriminoShape = {
-    'I': np.array([[1,1,1,1]], dtype=bool) ,
-    'O': np.array([[1,1],
-                   [1,1]], dtype=bool) ,
-    'S': np.array([[0,1,1],
-                   [1,1,0]], dtype=bool) ,
-    'Z': np.array([[1,1,0],
-                   [0,1,1]], dtype=bool) ,
-    'J': np.array([[1,0,0],
-                   [1,1,1]], dtype=bool), 
-    'L': np.array([[0,0,1],
-                   [1,1,1]], dtype=bool),
-    'T': np.array([[0,1,0],
-                   [1,1,1]], dtype=bool)
+    'I': np.array([[0,0,0,0],
+                   [0,1,2,3]], dtype='int8') ,
+    'O': np.array([[0,0,1,1],
+                   [0,1,0,1]], dtype='int8') ,
+    'S': np.array([[0,0,1,1],
+                   [1,2,0,1]], dtype='int8') ,
+    'Z': np.array([[0,0,1,1],
+                   [0,1,1,2]], dtype='int8') ,
+    'J': np.array([[0,1,1,1],
+                   [0,0,1,2]], dtype='int8'), 
+    'L': np.array([[0,0,0,1],
+                   [0,1,2,0]], dtype='int8'),
+    'T': np.array([[0,0,0,1],
+                   [0,1,2,1]], dtype='int8')
 }
 
 
 class Tetrimino():
 
-    def __init__(self, PieceType=None, ULloc=[0,0]):
-       assert PieceType in TetriminoShape.keys()
-       assert type(ULloc) == list, 'ULloc should be list.'
-       self._tetrimino = TetriminoShape[PieceType]
-       self._PieceType = PieceType
-       self._ULloc = ULloc
+    def __init__(self, PieceType=None):
+        assert PieceType in TetriminoShape.keys()
+        self._piecepos = TetriminoShape[PieceType]
 
-    def obtain_location(self, ExcludeVoid=False):
-        xlength, ylength = self._tetrimino.shape
-        xcoords, ycoords = [], []
-        for xi, xloc in enumerate(self._tetrimino):
-            for yi, yloc in enumerate(xloc):
-                xcoords.append(xi)
-                ycoords.append(yi)
-        if ExcludeVoid==True:
-            for coord in zip(xcoords, ycoords):
-                if self._tetrimino[coord] == False:
-                    xcoords.remove(coord[0])
-                    ycoords.remove(coord[1])
-        return np.array(xcoords) + self._ULloc[0], np.array(ycoords) + self._ULloc[1]
+    def get_piecepos(self):
+        return self._piecepos
 
     def shift(self, field, direction):
         assert direction in ['d', 'l', 'r']
         ## calculate the destination coordinate
-        xcoords, ycoords = self.obtain_location(ExcludeVoid=True)
+        xcoords, ycoords = self._piecepos
         if direction == 'd':
             xdest, ydest = xcoords+1, ycoords
         elif direction == 'l':
@@ -56,32 +43,31 @@ class Tetrimino():
         if field.get_destination_vacancy(xcoords, ycoords, xdest, ydest) == False:
             return False
         ## shift the tetrimino
-        if direction == 'd':
-            self._ULloc[0] += 1
-        elif direction == 'l':
-            self._ULloc[1] -= 1
-        elif direction == 'r':
-            self._ULloc[1] += 1
+        self._piecepos = np.array([xdest, ydest])
         ## tell the field to update the tetrimino position
         field.update(xcoords, ycoords, xdest, ydest)
         return True
 
     def rotate(self, field):
         ## calculate the destination, considering clockwise rotation
-        xcoords, ycoords = self.obtain_location(ExcludeVoid=True)
-        xdest = ycoords - self._ULloc[1] + self._ULloc[0]
-        ydest = xcoords[::-1] - self._ULloc[0] + self._ULloc[1]
+        xcoords, ycoords = self._piecepos
+        ULcorner = xcoords.min(), ycoords.min()
+        xdest = (ycoords - ULcorner[1])*(-1) + ULcorner[0]
+        ydest = (xcoords - ULcorner[0]) + ULcorner[1]
+        if xdest.min() < xcoords.min():
+            ## impose the height minimun in order to disturb from climbing
+            xdest = xdest - xdest.min() + xcoords.min()
         ## check the availability of the destination
         if field.get_destination_vacancy(xcoords, ycoords, xdest, ydest) == False:
             return False
         ## reshape the tetrimino
-        self._tetrimino = self._tetrimino.T[:,::-1]
+        self._piecepos = np.array([xdest, ydest])
         ## tell the field to update the tetrimino position
         field.update(xcoords, ycoords, xdest, ydest)
         return True
 
     def piece_1D(self):
-        return np.reshape(self._tetrimino, self._tetrimino.size)
+        return np.reshape(self._piecepos, self._piecepos.size)
 
     def piece_remove_array(self):
         return np.array([0,0,0,0])
@@ -132,10 +118,10 @@ class Field():
         self._field[xnew, ynew] = True
         return True
 
-    def put_new_tetrimino(self, PieceType, ULloc):
+    def put_new_tetrimino(self, PieceType):
         assert PieceType in TetriminoShape.keys()
-        NewTetrimino = Tetrimino(PieceType, ULloc)
-        self._field[NewTetrimino.obtain_location()] = NewTetrimino.piece_1D()
+        NewTetrimino = Tetrimino(PieceType)
+        self.update(None,None, NewTetrimino.get_piecepos()[0], NewTetrimino.get_piecepos()[1])
         return NewTetrimino
 
     def select_TetriminoShape_random(self):
@@ -146,7 +132,7 @@ def print_field(stdscr):
     stdscr.clear()
 
     field = Field()
-    tet = field.put_new_tetrimino('I', [0,0])
+    tet = field.put_new_tetrimino('I')
     stdscr.addstr(field.__repr__())
 
     KeyAndDir = {
