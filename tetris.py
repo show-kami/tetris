@@ -42,38 +42,32 @@ class Tetrimino():
                     ycoords.remove(coord[1])
         return np.array(xcoords) + self._ULloc[0], np.array(ycoords) + self._ULloc[1]
 
-    def can_move(self, direction, field):
-        ## obtain the destination coordinates
-        xcoords, ycoords = self.obtain_location()
+    def shift(self, field, direction):
+        assert direction in ['d', 'l', 'r']
+        ## calculate the destination coordinate
+        xcoords, ycoords = self.obtain_location(ExcludeVoid=True)
         if direction == 'd':
-            xcoords += 1
+            xdest, ydest = xcoords+1, ycoords
         elif direction == 'l':
-            ycoords -= 1
+            xdest, ydest = xcoords, ycoords-1
         elif direction == 'r':
-            ycoords += 1
-        else:
-            raise Exception('Invalid direction specified')
-        ## check whether the tetrimino is at edge or not
-        xAvailability = np.all([xcoords >= 0, xcoords < field.get_shape()[0]])
-        yAvailability = np.all([ycoords >= 0, ycoords < field.get_shape()[1]])
-        if (xAvailability and yAvailability) == False:
+            xdest, ydest = xcoords, ycoords+1
+        ## check the availability of the destination
+        if field.get_destination_vacancy(xcoords, ycoords, xdest, ydest) == False:
             return False
-        ## check the vacancy of destination
-        vacancy_array = field.get_vacancy_array()
-        vacancy_array[self.obtain_location(ExcludeVoid=True)] = True
-        vacancy = np.all(vacancy_array[xcoords, ycoords])
-        ## return
-        return (xAvailability and yAvailability) and vacancy
-
-    def move(self, direction):
+        ## shift the tetrimino
         if direction == 'd':
             self._ULloc[0] += 1
         elif direction == 'l':
             self._ULloc[1] -= 1
         elif direction == 'r':
             self._ULloc[1] += 1
-        else:
-            raise Exception('Invalid direction specified.')
+        ## tell the field to update the tetrimino position
+        field.update(xcoords, ycoords, xdest, ydest)
+        return True
+
+    def rotate(self):
+        pass
 
     def piece_1D(self):
         return np.reshape(self._tetrimino, self._tetrimino.size)
@@ -100,27 +94,38 @@ class Field():
         represent += '@'*(ylen+2) + '\n'
         return represent
 
-    def get_shape(self):
-        return self._field.shape
+    def get_shape(self, axis=None):
+        if axis==None:
+            return self._field.shape
+        elif axis=='x':
+            return self._field.shape[0]
+        elif axis=='y':
+            return self._field.shape[1]
 
     def get_vacancy_array(self):
         return np.invert(self._field)
 
+    def get_destination_vacancy(self, xoccupy, yoccupy, xdest, ydest):
+        ''' This method answers whether a piece can occupy the destination area.
+        If True is returned, the destination is vacant.'''
+        vacancy = self.get_vacancy_array()
+        vacancy[xoccupy, yoccupy] = True
+        if np.all([xdest >= 0, xdest < self.get_shape('x')]) \
+           and np.all([ydest >= 0 , ydest < self.get_shape('y')]):
+            return np.all(vacancy[xdest, ydest])
+        else:
+            return False
+
+    def update(self, xold, yold, xnew, ynew):
+        self._field[xold, yold] = False
+        self._field[xnew, ynew] = True
+        return True
 
     def put_new_tetrimino(self, PieceType, ULloc):
         assert PieceType in TetriminoShape.keys()
         NewTetrimino = Tetrimino(PieceType, ULloc)
         self._field[NewTetrimino.obtain_location()] = NewTetrimino.piece_1D()
         return NewTetrimino
-
-    def shift_tetrimino(self, tetrimino, direction):
-        if tetrimino.can_move(direction, self):
-            ## remove tetrimino from existing place
-            self._field[tetrimino.obtain_location(ExcludeVoid=True)] = tetrimino.piece_remove_array()
-            ## update the tetrimino's position
-            tetrimino.move(direction)
-            ## put the tetrimino into the destination place
-            self._field[tetrimino.obtain_location()] = tetrimino.piece_1D()
 
     def select_TetriminoShape_random(self):
         return list(TetriminoShape.keys())[np.random.randint(7)]
@@ -142,8 +147,8 @@ def print_field(stdscr):
     while True:
         c = stdscr.getch()
         if c in KeyAndDir.keys():
-            field.shift_tetrimino(tet, direction=KeyAndDir[c])
             stdscr.clear()
+            tet.shift(field=field, direction=KeyAndDir[c])
             stdscr.addstr(field.__repr__())
         elif c == ord('q'):
             break
