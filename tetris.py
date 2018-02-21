@@ -66,8 +66,19 @@ class Tetrimino():
         field.update(xcoords, ycoords, xdest, ydest)
         return True
 
-    def rotate(self):
-        pass
+    def rotate(self, field):
+        ## calculate the destination, considering clockwise rotation
+        xcoords, ycoords = self.obtain_location(ExcludeVoid=True)
+        xdest = ycoords - self._ULloc[1] + self._ULloc[0]
+        ydest = xcoords[::-1] - self._ULloc[0] + self._ULloc[1]
+        ## check the availability of the destination
+        if field.get_destination_vacancy(xcoords, ycoords, xdest, ydest) == False:
+            return False
+        ## reshape the tetrimino
+        self._tetrimino = self._tetrimino.T[:,::-1]
+        ## tell the field to update the tetrimino position
+        field.update(xcoords, ycoords, xdest, ydest)
+        return True
 
     def piece_1D(self):
         return np.reshape(self._tetrimino, self._tetrimino.size)
@@ -146,12 +157,14 @@ def print_field(stdscr):
     stdscr.refresh()
     while True:
         c = stdscr.getch()
+        stdscr.clear()
         if c in KeyAndDir.keys():
-            stdscr.clear()
             tet.shift(field=field, direction=KeyAndDir[c])
-            stdscr.addstr(field.__repr__())
+        elif c == curses.KEY_UP:
+            tet.rotate(field)
         elif c == ord('q'):
             break
+        stdscr.addstr(field.__repr__())
         stdscr.refresh()
 
 wrapper(print_field)
