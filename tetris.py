@@ -149,6 +149,16 @@ class Field():
         else:
             return False
 
+    def erase_filled_row(self):
+        filled_rows = []
+        for ri, row in enumerate(self._field):
+            if np.all(row) == True:
+                filled_rows.append(ri)
+                row = False
+        for ei, emptyrow in enumerate(filled_rows):
+            self._field[:emptyrow,:] = np.concatenate((np.zeros(shape=(1,self.get_shape('y')), dtype=bool), self._field[:emptyrow - 1, :]), axis=0)
+
+
 
 def print_field(stdscr):
     stdscr.clear()
@@ -172,7 +182,9 @@ def print_field(stdscr):
             tet.rotate(field)
         elif c == ord('q'):
             break
+        field.erase_filled_row()
         if field.judge_bottom_edge_touch(tet):
+            # TODO: 触れてから若干の遊びがほしいため，猶予が欲しい。
             tet = field.put_new_tetrimino('random')
         stdscr.addstr(field.__repr__())
         stdscr.refresh()
