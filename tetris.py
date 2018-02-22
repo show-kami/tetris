@@ -1,7 +1,6 @@
 import curses
 from curses import wrapper
 import numpy as np
-import signal
 
 TetriminoShape = {
     'I': np.array([[0,0,0,0],
@@ -128,6 +127,7 @@ class Field():
     def select_TetriminoShape_random(self):
         return list(TetriminoShape.keys())[np.random.randint(7)]
 
+
 def print_field(stdscr):
     stdscr.clear()
 
@@ -142,17 +142,15 @@ def print_field(stdscr):
     }
     stdscr.refresh()
     while True:
-        # ここらへんにsignalで1秒タイマーとか設置したらうまくいく？
-        while True:
-            c = stdscr.getch()
-            stdscr.clear()
-            if c in KeyAndDir.keys():
-                tet.shift(field=field, direction=KeyAndDir[c])
-            elif c == curses.KEY_UP:
-                tet.rotate(field)
-            elif c == ord('q'):
-                return
-            stdscr.addstr(field.__repr__())
-            stdscr.refresh()
+        c = stdscr.getch()
+        stdscr.clear()
+        if c in KeyAndDir.keys():
+            tet.shift(field=field, direction=KeyAndDir[c])
+        elif c == curses.KEY_UP:
+            tet.rotate(field)
+        elif c == ord('q'):
+            break
+        stdscr.addstr(field.__repr__())
+        stdscr.refresh()
 
 wrapper(print_field)
