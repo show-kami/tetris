@@ -26,8 +26,13 @@ class Tetrimino():
         assert PieceType in TetriminoShape.keys()
         self._piecepos = TetriminoShape[PieceType]
 
-    def get_piecepos(self):
-        return self._piecepos
+    def get_piecepos(self, axis=None):
+        if axis == None:
+            return self._piecepos
+        elif axis == 'x':
+            return self._piecepos[0]
+        elif axis == 'y':
+            return self._piecepos[1]
 
     def shift(self, field, direction):
         assert direction in ['d', 'l', 'r']
@@ -106,7 +111,8 @@ class Field():
         ''' This method answers whether a piece can occupy the destination area.
         If True is returned, the destination is vacant.'''
         vacancy = self.get_vacancy_array()
-        vacancy[xoccupy, yoccupy] = True
+        if type(xoccupy) == np.ndarray and type(yoccupy) == np.ndarray:
+            vacancy[xoccupy, yoccupy] = True
         if np.all([xdest >= 0, xdest < self.get_shape('x')]) \
            and np.all([ydest >= 0 , ydest < self.get_shape('y')]):
             return np.all(vacancy[xdest, ydest])
@@ -114,25 +120,36 @@ class Field():
             return False
 
     def update(self, xold, yold, xnew, ynew):
-        self._field[xold, yold] = False
-        self._field[xnew, ynew] = True
+        if type(xold) == np.ndarray and type(yold) == np.ndarray:
+            self._field[xold, yold] = False
+        if type(xnew) == np.ndarray and type(ynew) == np.ndarray:
+            self._field[xnew, ynew] = True
         return True
 
     def put_new_tetrimino(self, PieceType):
-        assert PieceType in TetriminoShape.keys()
+        assert PieceType in TetriminoShape.keys() or PieceType == 'random'
+        if PieceType == 'random':
+            PieceType = list(TetriminoShape.keys())[np.random.randint(7)]
         NewTetrimino = Tetrimino(PieceType)
         self.update(None,None, NewTetrimino.get_piecepos()[0], NewTetrimino.get_piecepos()[1])
         return NewTetrimino
 
-    def select_TetriminoShape_random(self):
-        return list(TetriminoShape.keys())[np.random.randint(7)]
+    def judge_bottom_edge_touch(self, tetrimino):
+        vacancy = self.get_vacancy_array()
+        xcoords, ycoords = tetrimino.get_piecepos()
+        if np.all(tetrimino.get_piecepos('x')+1 < self.get_shape('x')) == False:
+            return True
+        elif self.get_destination_vacancy(xcoords, ycoords, xcoords+1, ycoords) == False:
+            return True
+        else:
+            return False
 
 
 def print_field(stdscr):
     stdscr.clear()
 
     field = Field()
-    tet = field.put_new_tetrimino('I')
+    tet = field.put_new_tetrimino('random')
     stdscr.addstr(field.__repr__())
 
     KeyAndDir = {
@@ -150,6 +167,8 @@ def print_field(stdscr):
             tet.rotate(field)
         elif c == ord('q'):
             break
+        if field.judge_bottom_edge_touch(tet):
+            tet = field.put_new_tetrimino('random')
         stdscr.addstr(field.__repr__())
         stdscr.refresh()
 
