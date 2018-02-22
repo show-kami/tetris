@@ -2,6 +2,9 @@ import curses
 from curses import wrapper
 import numpy as np
 
+class GameOver(Exception):
+    pass
+
 TetriminoShape = {
     'I': np.array([[0,0,0,0],
                    [0,1,2,3]], dtype='int8') ,
@@ -131,6 +134,8 @@ class Field():
         if PieceType == 'random':
             PieceType = list(TetriminoShape.keys())[np.random.randint(7)]
         NewTetrimino = Tetrimino(PieceType)
+        if self.get_destination_vacancy(None, None, NewTetrimino.get_piecepos('x'), NewTetrimino.get_piecepos('y')) == False:
+            raise GameOver('Too many tetriminos are stacked.')
         self.update(None,None, NewTetrimino.get_piecepos()[0], NewTetrimino.get_piecepos()[1])
         return NewTetrimino
 
