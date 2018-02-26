@@ -1,6 +1,9 @@
 import curses
 from curses import wrapper
 import numpy as np
+import signal
+
+FALL_TIME = 1
 
 class GameOver(Exception):
     pass
@@ -158,6 +161,12 @@ class Field():
         for ei, emptyrow in enumerate(filled_rows):
             self._field[:emptyrow,:] = np.concatenate((np.zeros(shape=(1,self.get_shape('y')), dtype=bool), self._field[:emptyrow - 1, :]), axis=0)
 
+    def signal_handler(self, tetrimino):
+        # クロージャ。入門Python3 p.122
+        def move(signum, frame):
+            tetrimino.shift(field=self, direction='d')
+            signal.alarm(FALL_TIME)
+        return move
 
 
 def print_field(stdscr):
@@ -173,6 +182,8 @@ def print_field(stdscr):
         curses.KEY_RIGHT: 'r'
     }
     stdscr.refresh()
+    signal.signal(signal.SIGALRM, field.signal_handler(tet))
+    signal.alarm(FALL_TIME)
     while True:
         c = stdscr.getch()
         stdscr.clear()
@@ -186,6 +197,7 @@ def print_field(stdscr):
         if field.judge_bottom_edge_touch(tet):
             # TODO: 触れてから若干の遊びがほしいため，猶予が欲しい。
             tet = field.put_new_tetrimino('random')
+            signal.signal(signal.SIGALRM, field.signal_handler(tet))
         stdscr.addstr(field.__repr__())
         stdscr.refresh()
 
