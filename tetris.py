@@ -2,6 +2,7 @@ import curses
 from curses import wrapper
 import numpy as np
 import signal
+import logging
 
 FALL_TIME = 1
 
@@ -57,6 +58,7 @@ class Tetrimino():
         self._piecepos = np.array([xdest, ydest])
         ## tell the field to update the tetrimino position
         field.update(xcoords, ycoords, xdest, ydest)
+        logging.debug('Tetrimino(#{0}) shifted: ({1})->({2})'.format(id(self), [(xcoords[i], ycoords[i]) for i in range(len(xcoords))], [(xdest[i], ydest[i]) for i in range(len(xdest))]))
         return True
 
     def rotate(self, field):
@@ -87,6 +89,7 @@ class Tetrimino():
 class Field():
     def __init__(self):
         self._field = np.zeros(shape=(20,10), dtype=bool)
+        logging.info('New field is created at id %s', str(id(self)))
 
     def __repr__(self):
         xlen, ylen = self._field.shape
@@ -158,8 +161,10 @@ class Field():
             if np.all(row) == True:
                 filled_rows.append(ri)
                 row = False
+        logging.info('erase rows: %s', str(filled_rows))
         for ei, emptyrow in enumerate(filled_rows):
             self._field[:emptyrow,:] = np.concatenate((np.zeros(shape=(1,self.get_shape('y')), dtype=bool), self._field[:emptyrow - 1, :]), axis=0)
+            logging.debug('erased row No.{0}:\n'.format(emptyrow) + str(self.__repr__()))
 
     def signal_handler(self, tetrimino):
         # クロージャ。入門Python3 p.122
@@ -193,12 +198,16 @@ def print_field(stdscr):
             tet.rotate(field)
         elif c == ord('q'):
             break
-        field.erase_filled_row()
         if field.judge_bottom_edge_touch(tet):
             # TODO: 触れてから若干の遊びがほしいため，猶予が欲しい。
+            logging.debug('Tetrimino(#{0}) touched edge. Field status:\n'.format(id(tet))+field.__repr__())
+            field.erase_filled_row()
             tet = field.put_new_tetrimino('random')
             signal.signal(signal.SIGALRM, field.signal_handler(tet))
         stdscr.addstr(field.__repr__())
         stdscr.refresh()
 
-wrapper(print_field)
+
+if __name__ == '__main__':
+    logging.basicConfig(filename='tetris.log', level=logging.DEBUG)
+    wrapper(print_field)
