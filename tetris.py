@@ -163,7 +163,7 @@ class Field():
                 row = False
         logging.info('erase rows: %s', str(filled_rows))
         for ei, emptyrow in enumerate(filled_rows):
-            self._field[:emptyrow,:] = np.concatenate((np.zeros(shape=(1,self.get_shape('y')), dtype=bool), self._field[:emptyrow - 1, :]), axis=0)
+            self._field[:(emptyrow+1),:] = np.concatenate((np.zeros(shape=(1,self.get_shape('y')), dtype=bool), self._field[:emptyrow, :]), axis=0)
             logging.debug('erased row No.{0}:\n'.format(emptyrow) + str(self.__repr__()))
 
     def signal_handler(self, tetrimino):
