@@ -58,7 +58,6 @@ class Tetrimino():
         self._piecepos = np.array([xdest, ydest])
         ## tell the field to update the tetrimino position
         field.update(xcoords, ycoords, xdest, ydest)
-        logging.debug('Tetrimino(#{0}) shifted: ({1})->({2})'.format(id(self), [(xcoords[i], ycoords[i]) for i in range(len(xcoords))], [(xdest[i], ydest[i]) for i in range(len(xdest))]))
         return True
 
     def rotate(self, field):
@@ -102,7 +101,7 @@ class Field():
                 else:
                     represent += '*'
             represent += '@\n'
-        represent += '@'*(ylen+2) + '\n'
+        represent += '@'*(ylen+2)
         return represent
 
     def get_shape(self, axis=None):
@@ -209,5 +208,5 @@ def print_field(stdscr):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(filename='tetris.log', level=logging.DEBUG)
+    logging.basicConfig(filename='tetris.log', level=logging.DEBUG, filemode='w', format='%(asctime)s %(levelname)s: %(message)s', datefmt='%H:%M:%S')
     wrapper(print_field)
